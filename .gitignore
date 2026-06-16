@@ -23,3 +23,13 @@ eslint.log
 # OS files
 .DS_Store
 Thumbs.db
+
+# Root-level files not tracked in git
+# (each workspace has its own package.json/lock inside frontend/ and backend/)
+/package.json
+/package-lock.json
+/CONTRIBUTING.md
+/docs/
+/.github/
+/create_pr15.bat
+/pr15_body.md
