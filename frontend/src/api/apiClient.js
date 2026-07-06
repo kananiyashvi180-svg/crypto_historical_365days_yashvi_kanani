@@ -1,38 +1,24 @@
 import axios from 'axios';
 
-// Retrieve base URL from Vite environment variables (fallback to local backend port 5000)
-const baseURL = import.meta.env.VITE_API_URL || import.meta.env.VITE_API_BASE_URL || 'http://localhost:5000/api/v1';
+// Base URL:
+// - In development: Vite proxy forwards /api/* → http://localhost:5000/api/*
+//   so we use empty string (requests stay on same origin, proxy handles routing)
+// - In production: VITE_API_BASE_URL must point to the deployed backend
+const baseURL = import.meta.env.VITE_API_BASE_URL || '';
 
 // Create a reusable Axios instance
 const apiClient = axios.create({
   baseURL,
-  timeout: 10000, // 10 seconds timeout
+  timeout: 15000, // 15 seconds timeout
   headers: {
     'Content-Type': 'application/json',
     Accept: 'application/json',
   },
 });
 
-// Request Interceptor: Automatically attach JWT token and normalize URLs
+// Request Interceptor: Automatically attach JWT token
 apiClient.interceptors.request.use(
   (config) => {
-    // Normalize relative URLs to avoid duplicate /api/v1 prefixes or missing ones
-    if (config.url && !config.url.startsWith('http://') && !config.url.startsWith('https://')) {
-      let cleanUrl = config.url.startsWith('/') ? config.url : `/${config.url}`;
-      
-      const hasBaseV1 = config.baseURL && (config.baseURL.endsWith('/api/v1') || config.baseURL.endsWith('/api/v1/'));
-      if (hasBaseV1 && cleanUrl.startsWith('/api/v1')) {
-        cleanUrl = cleanUrl.substring(7); // Remove the "/api/v1" prefix
-      }
-      
-      const baseHasV1 = config.baseURL && config.baseURL.includes('/api/v1');
-      if (!baseHasV1 && !cleanUrl.startsWith('/api/v1')) {
-        cleanUrl = `/api/v1${cleanUrl}`;
-      }
-      
-      config.url = cleanUrl;
-    }
-
     const token = localStorage.getItem('token');
     if (token) {
       config.headers.Authorization = `Bearer ${token}`;
@@ -62,9 +48,8 @@ apiClient.interceptors.response.use(
       const { status, data } = error.response;
       standardizedError.status = status;
       standardizedError.data = data;
-      
+
       if (data?.errors && Array.isArray(data.errors)) {
-        // Check if elements are objects (old format) or strings (new format)
         const msgs = data.errors.map(err => {
           if (typeof err === 'object') {
             return Object.values(err).join(', ');
